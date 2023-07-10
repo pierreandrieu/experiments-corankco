@@ -11,7 +11,7 @@
 
 3. **Download the CPLEX solver binary:**
 
-- Visit the [IBM ILOG CPLEX Optimization Studio website](https://www.ibm.com/products/ilog-cplex-optimization-studio) (or appropriate link).
+- Visit the [IBM ILOG CPLEX Optimization Studio website](https://www.ibm.com/products/ilog-cplex-optimization-studio)
 - Follow the instructions to download the CPLEX binary suitable for your operating system. Note that there is a free version for academic uses.
 - Once downloaded, place the binary file into the project folder.
 
