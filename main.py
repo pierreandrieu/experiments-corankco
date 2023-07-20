@@ -232,7 +232,7 @@ def run_experiment_students_ijar(raw_data=False, figures=False):
         # kcfs to consider
         scoring_schemes=kcfs,
         # algorithm to compute consensus
-        algo=crc.CopelandMethod())
+        algo=crc.ParCons(bound_for_exact=150, auxiliary_algorithm=crc.BioConsert()))
 
     # run experiment and print results. If raw_data is true: also print all parameters of experiment (readme)
     # and the raw data that was used to compute the final data. If parameter is false, only final data is displayed
