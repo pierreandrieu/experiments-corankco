@@ -1,27 +1,42 @@
+# Base image
 FROM python:3.8
 
-RUN adduser myuser
+# Add a non-root user
+RUN adduser --disabled-password --gecos '' myuser
+
+# Change to non-root user
 USER myuser
+
+# Set the working directory to the home of the non-root user
 WORKDIR /home/myuser
+
+# Update PATH
 ENV PATH="/home/myuser/.local/bin:${PATH}"
-# RUN /usr/local/bin/python -m pip install --upgrade pip
-RUN mkdir experiments-corankco
-RUN pip3 install --upgrade --user pip
-RUN pip install --upgrade setuptools
 
-# copy and install requirements
-COPY --chown=myuser:myuser requirements.txt requirements.txt
-COPY requirements.txt requirements.txt
-RUN pip3 install -r requirements.txt
-
-# installation of CPLEX 20.10
+# Install apt-utils
 USER root
-RUN apt-get update && apt-get install -y default-jre
-RUN apt-get install -y python3-dev
+RUN apt-get update && apt-get install -y --no-install-recommends apt-utils
+USER myuser
 
+# Upgrade pip and setuptools
+RUN /usr/local/bin/python -m pip install --upgrade pip setuptools
+
+# Create necessary directories
+RUN mkdir experiments-corankco
+
+# Copy requirements and install python dependencies
+COPY --chown=myuser:myuser requirements.txt requirements.txt
+RUN pip install --user -r requirements.txt
+
+
+# Install default-jre
+USER root
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y default-jre python3-dev
+
+# Install Cplex
 ARG COSDIR=/opt/CPLEX
 ARG CPX_PYVERSION=3.8
-ADD ./cplex_studio2211.linux_x86_64.bin /tmp/installer
+ADD ./ILOG_COS_20.10_LINUX_X86_64.bin /tmp/installer
 COPY install.properties /tmp/install.properties
 RUN chmod u+x /tmp/installer
 
