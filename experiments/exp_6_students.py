@@ -275,5 +275,4 @@ class MarksExperiment(Experiment):
         plt.ylim(0, 20)
         plt.ylabel("average (  | top-20 consensus ∩ top-20 goldstandard | )")
         plt.scatter(x_axis, y_axis)
-        plt.savefig("/home/pierre/Bureau/fig_marks.png")
         plt.show()
