@@ -1,7 +1,4 @@
-from corankco.dataset import DatasetSelector
-from corankco.partitioning.parconsPartition import ParConsPartition
-from corankco.algorithms.median_ranking import MedianRanking
-from corankco.scoringscheme import ScoringScheme
+import corankco as crc
 from experiments.experiment import ExperimentFromDataset
 from typing import List, Tuple, Dict
 import numpy as np
@@ -17,9 +14,9 @@ class BenchTime(ExperimentFromDataset):
 
     def __init__(self,
                  dataset_folder: str,
-                 algs: List[MedianRanking],
-                 scoring_scheme: ScoringScheme,
-                 dataset_selector_exp: DatasetSelector = None,
+                 algs: List[crc.RankAggAlgorithm],
+                 scoring_scheme: crc.ScoringScheme,
+                 dataset_selector_exp: crc.DatasetSelector = None,
                  steps: int = 5,
                  max_time: float = float('inf'),
                  repeat_time_computation_until: float = 1.):
@@ -39,7 +36,7 @@ class BenchTime(ExperimentFromDataset):
         super().__init__(dataset_folder, dataset_selector_exp)
 
         # the algorithms to compare
-        self.__algs: List[MedianRanking] = algs
+        self.__algs: List[crc.RankAggAlgorithm] = algs
         # the scoring scheme to use
         self.__scoring_scheme = scoring_scheme
         # the steps (see docstring if __init__)
@@ -113,7 +110,7 @@ class BenchTime(ExperimentFromDataset):
         # each unique id of range of elements to consider, associated with a dict where keys are the algorithm
         # and the values the time computation of the latter algorithm for each dataset whose nb of elements is
         # in the considered range
-        h_res: Dict[int, Dict[MedianRanking, List[float]]] = {}
+        h_res: Dict[int, Dict[crc.RankAggAlgorithm, List[float]]] = {}
 
         # given an int as key that is a nb of elements for a dataset, value = the id of the tuple of nb of elements
         # associated. For instance, mapping[42] = 1 if ranges = [(30, 39), (40, 49), ]
@@ -124,14 +121,13 @@ class BenchTime(ExperimentFromDataset):
         key_mapping: int = 0
         # the dict algorithm -> list of result time computation for the datasets whose nb of elements
         # are in the considered range
-        h_res[0]: Dict[MedianRanking, List[float]] = {}
+        h_res[0]: Dict[crc.RankAggAlgorithm, List[float]] = {}
 
         for alg in self.__algs:
             h_res[0][alg]: List[float] = []
 
         # the tuples of nb of elements to consider. For instance: (30, 39), (40, 49), ...
         tuples_groups: List[Tuple[int, int]] = []
-
 
         for i in range(self._dataset_selector.nb_elem_min, self._dataset_selector.nb_elem_max+1):
             cpt += 1
@@ -141,7 +137,7 @@ class BenchTime(ExperimentFromDataset):
             if cpt == self.__steps:
                 key_mapping += 1
                 cpt = 0
-                h_res[key_mapping]: Dict[MedianRanking, List[float]] = {}
+                h_res[key_mapping]: Dict[crc.RankAggAlgorithm, List[float]] = {}
                 for alg in self.__algs:
                     h_res[key_mapping][alg]: List[float] = []
 
@@ -187,9 +183,9 @@ class BenchScalabilityScoringScheme(ExperimentFromDataset):
     """
     def __init__(self,
                  dataset_folder: str,
-                 alg: MedianRanking,
-                 scoring_schemes: List[ScoringScheme],
-                 dataset_selector_exp: DatasetSelector = None,
+                 alg: crc.RankAggAlgorithm,
+                 scoring_schemes: List[crc.ScoringScheme],
+                 dataset_selector_exp: crc.DatasetSelector = None,
                  steps: int = 5,
                  max_time: float = float('inf'),
                  repeat_time_computation_until: float = 1.):
@@ -276,13 +272,13 @@ class BenchScalabilityScoringScheme(ExperimentFromDataset):
         # key: unique int id of the range of elements to consider.
         # value: a dict where key = scoring scheme, value = all the time computation of the datasets whose nb of
         # elements is in the considered range
-        h_res: Dict[int, Dict[ScoringScheme, List[float]]] = {}
+        h_res: Dict[int, Dict[crc.ScoringScheme, List[float]]] = {}
 
         mapping_nb_elements_group: Dict[int, int] = {}
         # as above, see comments
         cpt: int = 0
         key_mapping: int = 0
-        h_res[0]: Dict[ScoringScheme, List[float]] = {}
+        h_res[0]: Dict[crc.ScoringScheme, List[float]] = {}
 
         # initialize each list of float with an empty list
         for sc in self.__scoring_schemes:
@@ -298,7 +294,7 @@ class BenchScalabilityScoringScheme(ExperimentFromDataset):
             if cpt == self.__steps:
                 key_mapping += 1
                 cpt: int = 0
-                h_res[key_mapping]: Dict[ScoringScheme, List[float]] = {}
+                h_res[key_mapping]: Dict[crc.ScoringScheme, List[float]] = {}
                 for sc in self.__scoring_schemes:
                     h_res[key_mapping][sc]: List[float] = []
         # fill the tuples
@@ -333,10 +329,10 @@ class BenchPartitioningScoringScheme(ExperimentFromDataset):
     """
     def __init__(self,
                  dataset_folder: str,
-                 scoring_schemes_exp: List[ScoringScheme],
+                 scoring_schemes_exp: List[crc.ScoringScheme],
                  changing_coeff: Tuple[int, int],
                  intervals: List[Tuple[int, int]] = None,
-                 dataset_selector_exp: DatasetSelector = None,
+                 dataset_selector_exp: crc.DatasetSelector = None,
                  ):
         """
 
@@ -372,7 +368,9 @@ class BenchPartitioningScoringScheme(ExperimentFromDataset):
             ligne: str = dataset.name + ";" + str(dataset.nb_elements) + ";"
             for scoring_scheme in self.__scoring_schemes:
                 # computes the size of the biggest sub-problem obtained
-                ligne += str(ParConsPartition.size_of_biggest_subproblem(dataset, scoring_scheme)) + ";"
+                parcons_partition: crc.OrderedPartition = crc.OrderedPartition.parcons_partition(
+                    dataset, scoring_scheme)
+                ligne += str(max(len(group) for group in parcons_partition)) + ";"
             ligne += "\n"
             res += ligne
             if path_to_store_results is not None:
@@ -396,18 +394,12 @@ class BenchPartitioningScoringScheme(ExperimentFromDataset):
             value_coeff = scoring_scheme.penalty_vectors[self.__changing_coeff[0]][self.__changing_coeff[1]]
             res += ";" + str(value_coeff)
         res += "\n"
-        nb_scoring_schemes = len(self.__scoring_schemes)
         h_res = {}
         for interval in self.__intervals:
             h_res[interval] = {}
             for scoring_scheme in self.__scoring_schemes:
                 h_res[interval][scoring_scheme] = []
 
-        for line in raw_data.split("\n")[1:]:
-            if len(line) > 1:
-                cols = line.split(";")
-                id_scoring_scheme = 0
-                nb_elem = int(cols[1])
         for interval in self.__intervals:
             for i in range(interval[0], interval[1]+1):
                 mapping_int_interval[i] = interval

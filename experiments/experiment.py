@@ -1,11 +1,8 @@
 from typing import List, Dict, Set
 from experiments.orphanet_parser import OrphanetParser
-from experiments.disease import Disease
-from corankco.dataset import Dataset, DatasetSelector
-from corankco.scoringscheme import ScoringScheme
-from corankco.utils import join_paths, get_parent_path
-from corankco.partitioning.parfront import ParFront
-from corankco.algorithms.algorithmChoice import Algorithm, get_algorithm
+from experiments.biological_objects import Disease
+from experiments.utils import join_paths, get_parent_path
+import corankco as crc
 
 
 class Experiment:
@@ -79,15 +76,15 @@ class ExperimentFromDataset(Experiment):
         raise NotImplementedError("The method not implemented")
 
     def __init__(self, dataset_folder: str,
-                 dataset_selector: DatasetSelector = None):
+                 dataset_selector: crc.DatasetSelector = None):
         super().__init__()
         self._dataset_selector = dataset_selector
         if self._dataset_selector is None:
-            self._dataset_selector = DatasetSelector(0, float('inf'), 0, float('inf'))
+            self._dataset_selector = crc.DatasetSelector(0, float('inf'), 0, float('inf'))
         self._datasets = []
-        self._datasets = self._dataset_selector.select_datasets(Dataset.get_datasets_from_folder(dataset_folder))
+        self._datasets = self._dataset_selector.select_datasets(crc.Dataset.get_datasets_from_folder(dataset_folder))
 
-    def _get_datasets(self) -> List[Dataset]:
+    def _get_datasets(self) -> List[crc.Dataset]:
         return self._datasets
 
     datasets = property(_get_datasets)
@@ -100,7 +97,7 @@ class ExperimentFromOrphanetDataset(ExperimentFromDataset):
     def _run_raw_data(self, path_to_store_results: str = None) -> str:
         raise NotImplementedError("The method not implemented")
 
-    def __init__(self, dataset_folder: str, dataset_selector: DatasetSelector = None):
+    def __init__(self, dataset_folder: str, dataset_selector: crc.DatasetSelector = None):
         super().__init__(dataset_folder, dataset_selector)
         self._orphanetParser = OrphanetParser.get_orpha_base_for_ijar(join_paths(get_parent_path(
                                                                                 get_parent_path(dataset_folder)),
@@ -137,22 +134,3 @@ class ExperimentFromOrphanetDataset(ExperimentFromDataset):
                     res.append(dataset)
                     self._datasets_gs[dataset.name] = real_gs
         self._datasets = res
-
-
-class CheckFrontiersCopeland(ExperimentFromOrphanetDataset):
-    def __init__(self, dataset_folder: str, scoring_scheme: ScoringScheme, dataset_selector: DatasetSelector = None):
-        super().__init__(dataset_folder, dataset_selector)
-        self.__scoring_scheme = scoring_scheme
-
-    def _run_final_data(self, raw_data: str) -> str:
-        res = ""
-        return res
-
-    def _run_raw_data(self, path_to_store_results: str = None) -> str:
-        res = ""
-        for dataset in self.datasets:
-            frontiers = ParFront().compute_partition(dataset, self.__scoring_scheme)
-            alg = get_algorithm(Algorithm.CopelandMethod)
-            consensus = alg.compute_consensus_rankings(dataset, self.__scoring_scheme, True)
-            print(frontiers.consistent_with(consensus))
-        return res

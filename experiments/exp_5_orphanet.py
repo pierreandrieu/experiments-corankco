@@ -1,16 +1,11 @@
 from experiments.experiment import ExperimentFromDataset
 from experiments.orphanet_parser import OrphanetParser
-from experiments.disease import Disease
-from corankco.dataset import DatasetSelector, Dataset
-from corankco.algorithms.algorithmChoice import Algorithm, get_algorithm
-from corankco.algorithms.median_ranking import MedianRanking
-from corankco.scoringscheme import ScoringScheme
-from corankco.consensus import Consensus
-from corankco.ranking import Ranking
+from experiments.biological_objects import Disease
 from typing import List, Set, Dict, Tuple
-from corankco.utils import join_paths, get_parent_path
+from experiments.utils import join_paths, get_parent_path
 import numpy as np
 import matplotlib.pyplot as plt
+import corankco as crc
 
 
 class ExperimentOrphanet(ExperimentFromDataset):
@@ -22,10 +17,10 @@ class ExperimentOrphanet(ExperimentFromDataset):
     """
     def __init__(self,
                  dataset_folder: str,
-                 scoring_schemes: List[ScoringScheme],
+                 scoring_schemes: List[crc.ScoringScheme],
                  top_k_to_test: List[int],
-                 algo: MedianRanking = get_algorithm(Algorithm.ParCons, parameters={"bound_for_exact": 150}),
-                 dataset_selector: DatasetSelector = None,
+                 algo: crc.RankAggAlgorithm = crc.ParCons(bound_for_exact=150),
+                 dataset_selector: crc.DatasetSelector = None,
                  ):
         """
 
@@ -40,13 +35,13 @@ class ExperimentOrphanet(ExperimentFromDataset):
         # load the xml file of Orphanet Database
         self.__orphanetParser: OrphanetParser = OrphanetParser.get_orpha_base_for_ijar(
             join_paths(get_parent_path(get_parent_path(dataset_folder)), "supplementary_data"))
-        self.__algo: MedianRanking = algo
+        self.__algo: crc.RankAggAlgorithm = algo
         # keep only the datasets whose disease is in orphanet with at least one common gene between database NCBI Gene
         # and Orphanet
         self.__remove_useless_datasets()
-        self.__scoring_schemes: List[ScoringScheme] = []
-        self.__consensus: Dict[ScoringScheme, List[Tuple[Dataset, Consensus]]] = {}
-        self.__scoring_schemes: List[ScoringScheme] = scoring_schemes
+        self.__scoring_schemes: List[crc.ScoringScheme] = []
+        self.__consensus: Dict[crc.ScoringScheme, List[Tuple[crc.Dataset, crc.Consensus]]] = {}
+        self.__scoring_schemes: List[crc.ScoringScheme] = scoring_schemes
         self.__top_k_to_test: List[int] = top_k_to_test
 
     def __is_mesh_term_in_orphanet(self, mesh_term: str) -> bool:
@@ -73,7 +68,7 @@ class ExperimentOrphanet(ExperimentFromDataset):
         :return: None
 
         """
-        res: List[Dataset] = []
+        res: List[crc.Dataset] = []
         # for each dataset of the BiologicalDataset
         for dataset in self._datasets:
             # get the name of the associated disease
@@ -119,7 +114,7 @@ class ExperimentOrphanet(ExperimentFromDataset):
                 # get the goldstandard and print the information
                 gs = h_disease_gs[dataset.name]
                 # store the useful information
-                line: str = str(sc.b5) + ";" + dataset.name + ";" + str(dataset.nb_elements) + ";" + str(gs) + ";" \
+                line: str = str(sc.b_vector[4]) + ";" + dataset.name + ";" + str(dataset.nb_elements) + ";" + str(gs) + ";" \
                        + str(len(gs)) + ";" + str(consensus[0]) + "\n"
                 res += line
                 if path_to_store_results is not None:
@@ -139,7 +134,7 @@ class ExperimentOrphanet(ExperimentFromDataset):
         # first line
         res: str = "k"
         for scoring_scheme in self.__scoring_schemes:
-            res += ";b5-b4=" + str(scoring_scheme.b5-scoring_scheme.b4)
+            res += ";b5-b4=" + str(scoring_scheme.b_vector[4]-scoring_scheme.b_vector[3])
         res += "\n"
 
         # for each k of target top k, associate a dict where keys are the values of b5 parameter and values are
@@ -154,7 +149,7 @@ class ExperimentOrphanet(ExperimentFromDataset):
             h_res[top_k]: Dict[float, List[int]] = {}
             # for each value of b5, initialize the associated list, empty for now
             for sc in self.__scoring_schemes:
-                h_res[top_k][sc.b5]: List[int] = []
+                h_res[top_k][sc.b_vector[4]]: List[int] = []
 
         # now, filling the lists in the res Dict
         for top_k in top_k_all:
@@ -170,8 +165,9 @@ class ExperimentOrphanet(ExperimentFromDataset):
                     # get the gold standard as a set of ints
                     # the [1:-1] is to remove { and }
                     gs: Set[int] = {int(elem) for elem in gs_str[1:-1].split(", ")}
-                    h_res_topk_sc.append(Consensus(
-                        [Ranking.from_string(consensus_str)]).evaluate_topk_ranking(gs, top_k=top_k))
+                    h_res_topk_sc.append(crc.Consensus(
+                        [crc.Ranking.from_string(consensus_str)]).evaluate_topk_ranking(gs, top_k=top_k))
+
         # now, getting the final csv file. columns = top_k, res_by_sc1, ..., res_by_sc_n
         # here, the res of a kcf, given a top k, is the average number of common elements between the top-k consensus
         # rankings and the goldstandard
@@ -179,7 +175,7 @@ class ExperimentOrphanet(ExperimentFromDataset):
             res += str(top_k)
             h_topk = h_res[top_k]
             for sc in self.__scoring_schemes:
-                res += ";" + str(np.sum(np.asarray(h_topk[sc.b5])))
+                res += ";" + str(np.sum(np.asarray(h_topk[sc.b_vector[4]])))
             res += "\n"
         return res
 
@@ -190,7 +186,7 @@ class ExperimentOrphanet(ExperimentFromDataset):
         """
         # Dict whoch associates for each scoring_scheme a list of couple (dataset, consensus)
         for sc in self.__scoring_schemes:
-            self.__consensus[sc]: List[Dataset, Consensus] = []
+            self.__consensus[sc]: List[crc.Dataset, crc.Consensus] = []
             for dataset in self._datasets:
                 consensus = self.__algo.compute_consensus_rankings(dataset, sc, True)
                 self.__consensus[sc].append((dataset, consensus))

@@ -1,8 +1,5 @@
-from experiments.database_enum import Database
-from experiments.disease import Disease
-from experiments.gene import Gene
-from experiments.biological_database import BiologicalDatabase
-from corankco.utils import join_paths
+from experiments.biological_objects import Disease, Gene, BiologicalDatabase, Database
+from experiments.utils import join_paths
 from typing import List
 
 

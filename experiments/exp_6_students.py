@@ -1,10 +1,5 @@
 from experiments.experiment import Experiment
-from corankco.dataset import Dataset
-from corankco.algorithms.algorithmChoice import get_algorithm, Algorithm
-from corankco.scoringscheme import ScoringScheme
-from corankco.algorithms.median_ranking import MedianRanking
-from corankco.ranking import Ranking
-from corankco.element import Element
+import corankco as crc
 import random
 from itertools import groupby
 from operator import itemgetter
@@ -110,7 +105,7 @@ class SchoolYear:
         return self._goldstandard
 
     @staticmethod
-    def school_year_to_dataset(school_year: 'SchoolYear') -> Dataset:
+    def school_year_to_dataset(school_year: 'SchoolYear') -> crc.Dataset:
         """
 
         :param school_year: the SchoolYear object to consuder
@@ -119,7 +114,7 @@ class SchoolYear:
 
 
         """
-        rankings: List[Ranking] = []
+        rankings: List[crc.Ranking] = []
         marks: np.ndarray = school_year.marks
         nb_students, nb_classes = marks.shape
         # for each class, create the rankings of the involved students according to their mark
@@ -132,10 +127,10 @@ class SchoolYear:
             marks_students: List[Tuple[float, int]] = sorted(marks_students, reverse=True)
 
             # create the rankings of the students according to their mark. If same mark, same bucket
-            ranking_students: List[Set[Element]] = [set(Element(x[1]) for x in group) for _, group in
+            ranking_students: List[Set[crc.Element]] = [set(crc.Element(x[1]) for x in group) for _, group in
                                                     groupby(marks_students, key=itemgetter(0))]
-            rankings.append(Ranking(ranking_students))
-        return Dataset(rankings)
+            rankings.append(crc.Ranking(ranking_students))
+        return crc.Dataset(rankings)
 
 
 class MarksExperiment(Experiment):
@@ -158,9 +153,8 @@ class MarksExperiment(Experiment):
                  mean_track2: float,
                  variance_track2: float,
                  topk: int,
-                 scoring_schemes: List[ScoringScheme],
-                 algo: MedianRanking = get_algorithm(Algorithm.ParCons, parameters={
-                     "bound_for_exact": 150, "auxiliary_algorithm": get_algorithm(alg=Algorithm.BioConsert)}),
+                 scoring_schemes: List[crc.ScoringScheme],
+                 algo: crc.RankAggAlgorithm = crc.ParCons(bound_for_exact=150, auxiliary_algorithm=crc.BioConsert()),
                  ):
         """
 
@@ -185,8 +179,8 @@ class MarksExperiment(Experiment):
         """
         super().__init__()
         # the attributes of the experiment object
-        self.__alg: MedianRanking = algo
-        self.__scoring_schemes: List[ScoringScheme] = scoring_schemes
+        self.__alg: crc.RankAggAlgorithm = algo
+        self.__scoring_schemes: List[crc.ScoringScheme] = scoring_schemes
         self.__nb_years: int = nb_years
         self.__nb_students_track_1: int = nb_students_track1
         self.__nb_students_track_2: int = nb_students_track2
@@ -226,7 +220,7 @@ class MarksExperiment(Experiment):
                                      self.__variance_track2,
                                      self.__topk)
             # create the Dataset for the year that is the ranking of the students for each class
-            dataset_year: Dataset = SchoolYear.school_year_to_dataset(school_year)
+            dataset_year: crc.Dataset = SchoolYear.school_year_to_dataset(school_year)
 
             # for each scoring scheme
             for scoring_scheme in self.__scoring_schemes:
@@ -236,7 +230,7 @@ class MarksExperiment(Experiment):
                 both_gs_topk: int = \
                     consensus.evaluate_topk_ranking(goldstandard=school_year.goldstandard, top_k=self.__topk)
                 # get useful information
-                line: str = str(i) + ";" + str(scoring_scheme.b5) + ";" + str(both_gs_topk)+"\n"
+                line: str = str(i) + ";" + str(scoring_scheme.b_vector[4]) + ";" + str(both_gs_topk)+"\n"
                 if path_to_store_results is not None:
 
                     self._write_line_in_file(path_to_store_results, line)
@@ -253,7 +247,7 @@ class MarksExperiment(Experiment):
         # stores for each value of b5 the list of the number of students both in consensus and goldstandard
         h_res: Dict[float, List[float]] = {}
         for scoring_scheme in self.__scoring_schemes:
-            h_res[scoring_scheme.b5]: List[float] = []
+            h_res[scoring_scheme.b_vector[4]]: List[float] = []
         # for each line of the raw data,
         for line in raw_data.split("\n")[1:]:
             if len(line) > 1:
@@ -264,7 +258,8 @@ class MarksExperiment(Experiment):
         # goldstandard
         res = "b5-b4;common_goldstandard_topkconsensus\n"
         for scoring_scheme in self.__scoring_schemes:
-            res += str(scoring_scheme.b5) + ";" + str(np.round(np.mean(np.asarray(h_res[scoring_scheme.b5])), 2))+"\n"
+            res += str(scoring_scheme.b_vector[4]) + ";" \
+                   + str(np.round(np.mean(np.asarray(h_res[scoring_scheme.b_vector[4]])), 2))+"\n"
         return res
 
     def _display(self, final_data: str):
