@@ -1,46 +1,34 @@
-from experiments.bench import BenchPartitioningScoringScheme, BenchTime, BenchScalabilityScoringScheme
-from experiments.experimentOrphanet import ExperimentOrphanet
-from experiments.marksExperiment import MarksExperiment
-from corankco.dataset import DatasetSelector
-from corankco.scoringscheme import ScoringScheme
+from experiments.exp_1_2_3_4_bench import BenchPartitioningScoringScheme, BenchTime, BenchScalabilityScoringScheme
+from experiments.exp_5_orphanet import ExperimentOrphanet
+from experiments.exp_6_students import MarksExperiment
+import corankco as crc
 from corankco.algorithms.exact.exactalgorithmcplexforpaperoptim1 import ExactAlgorithmCplexForPaperOptim1
-from corankco.algorithms.parcons.parcons import ParCons
-from corankco.algorithms.median_ranking import MedianRanking
-from corankco.algorithms.copeland.copeland import CopelandMethod
-from corankco.algorithms.bioconsert.bioconsert import BioConsert
-from corankco.algorithms.exact.exactalgorithm import ExactAlgorithm
 from typing import Set, List, Dict, Callable
 import random
 import numpy as np
 import sys
-# from os.path import join
-# from datetime import datetime
 import argparse
 from pathlib import Path
-
-
-# folder_output: str = "output_experiments"
 
 
 def run_bench_time_alg_exacts_ijar(path_dataset: str, raw_data=False, figures=False):
     # get the scoring schemes (the KCFs)
     print("Run bench time computation of EA, EA-optim1, EA-optim1-optim2")
     print("Estimated time: 36h on Intel Core i7-7820HQ CPU 2.9 GHz * 8")
-    kcf1 = ScoringScheme.get_unifying_scoring_scheme_p(1.)
-    kcf2 = ScoringScheme.get_extended_measure_scoring_scheme()
-    kcf3 = ScoringScheme.get_induced_measure_scoring_scheme_p(1.)
-    kcf4 = ScoringScheme.get_pseudodistance_scoring_scheme_p(1.)
-    kcfs: List[ScoringScheme] = [kcf1, kcf2, kcf3, kcf4]
+    # kcf1 = crc.ScoringScheme.get_unifying_scoring_scheme_p(1.)
+    # kcf2 = crc.ScoringScheme.get_extended_measure_scoring_scheme()
+    kcf3 = crc.ScoringScheme.get_induced_measure_scoring_scheme_p(1.)
+    kcf4 = crc.ScoringScheme.get_pseudodistance_scoring_scheme_p(1.)
+    kcfs: List[crc.ScoringScheme] = [kcf3, kcf4]
     # not optimized exact algorithm
-    ea: MedianRanking = ExactAlgorithm(optimize=False)
-
+    ea: crc.RankAggAlgorithm = crc.ExactAlgorithm(optimize=False)
     # exact algorithm with optim1
-    ea_optim1: MedianRanking = ExactAlgorithmCplexForPaperOptim1()
+    ea_optim1: crc.RankAggAlgorithm = ExactAlgorithmCplexForPaperOptim1()
 
     # exact algorithm with optim 1 and 2
-    ea_optim1_optim2: MedianRanking = ExactAlgorithm(optimize=True)
+    ea_optim1_optim2: crc.RankAggAlgorithm = crc.ExactAlgorithm(optimize=True)
 
-    algorithms_for_bench: List[MedianRanking] = [
+    algorithms_for_bench: List[crc.RankAggAlgorithm] = [
         ea, ea_optim1, ea_optim1_optim2
     ]
     # run experiment for each scoring scheme (KCF)
@@ -54,12 +42,12 @@ def run_bench_time_alg_exacts_ijar(path_dataset: str, raw_data=False, figures=Fa
             # the scoring scheme that is the kcf to consider
             scoring_scheme=kcf,
             # to select tuples of rankings with number of elements between 30 and 119 and at least 3 rankings
-            dataset_selector_exp=DatasetSelector(nb_elem_min=30, nb_elem_max=119, nb_rankings_min=3),
+            dataset_selector_exp=crc.DatasetSelector(nb_elem_min=30, nb_elem_max=49, nb_rankings_min=3),
             # range of size of datasets for the output
             steps=10,
             # re-compute the consensus until final time computation > 1 sec.
             # the average time computation is then returned
-            repeat_time_computation_until=1.)
+            repeat_time_computation_until=0.)
 
         # run experiment and print results. If parameter is true: also print all parameters of experiment (readme)
         # and the raw data that was used to compute the final data. If parameter is false, only final data is displayed
@@ -72,14 +60,14 @@ def run_bench_exact_optimized_scoring_scheme_ijar(path_dataset: str, raw_data=Fa
     print("Estimated time: 24h on Intel Core i7-7820HQ CPU 2.9 GHz * 8")
     # file_output: str = join(folder_output, "exp2_" + datetime.now().strftime("time=%m-%d-%Y_%H-%M-%S") + ".csv")
     # get the scoring schemes to consider in the experiment (the KCFs)
-    kcf1: ScoringScheme = ScoringScheme.get_unifying_scoring_scheme_p(1.)
-    kcf2: ScoringScheme = ScoringScheme.get_extended_measure_scoring_scheme()
-    kcf3: ScoringScheme = ScoringScheme.get_induced_measure_scoring_scheme_p(1.)
-    kcf4: ScoringScheme = ScoringScheme.get_pseudodistance_scoring_scheme_p(1.)
-    kcfs: List[ScoringScheme] = [kcf1, kcf2, kcf3, kcf4]
+    # kcf1: crc.ScoringScheme = crc.ScoringScheme.get_unifying_scoring_scheme_p(1.)
+    # kcf2: crc.ScoringScheme = crc.ScoringScheme.get_extended_measure_scoring_scheme()
+    kcf3: crc.ScoringScheme = crc.ScoringScheme.get_induced_measure_scoring_scheme_p(1.)
+    kcf4: crc.ScoringScheme = crc.ScoringScheme.get_pseudodistance_scoring_scheme_p(1.)
+    kcfs: List[crc.ScoringScheme] = [kcf3, kcf4]
 
     # use the fastest exact algorithm to test the scalability
-    ea_optim1_optim2: MedianRanking = ExactAlgorithm(optimize=True)
+    ea_optim1_optim2: crc.RankAggAlgorithm = crc.ExactAlgorithm(optimize=True)
     # run experiment for each scoring scheme (KCF)
     bench: BenchScalabilityScoringScheme = BenchScalabilityScoringScheme(
         dataset_folder=path_dataset,
@@ -88,14 +76,14 @@ def run_bench_exact_optimized_scoring_scheme_ijar(path_dataset: str, raw_data=Fa
         # the kcfs to consider
         scoring_schemes=kcfs,
         # the dataset selector for selection according to the size
-        dataset_selector_exp=DatasetSelector(nb_elem_min=130, nb_elem_max=300, nb_rankings_min=3),
+        dataset_selector_exp=crc.DatasetSelector(nb_elem_min=30, nb_elem_max=59, nb_rankings_min=3),
         # range of size of datasets for the output
         steps=10,
         # max time computation allowed. for each kcf, the computation stops
         # when for a tuple of rankings the time computation is higher
         max_time=600,
         # re-compute the consensus until final time computation > 1 sec. The average time computation is then returned
-        repeat_time_computation_until=1.)
+        repeat_time_computation_until=0.)
 
     # run experiment and print results. If parameter is true: also print all parameters of experiment (readme)
     # and the raw data that was used to compute the final data. If parameter is false, only final data is displayed
@@ -109,21 +97,22 @@ def run_count_subproblems_t_ijar(path_dataset: str, raw_data=False):
     # file_output: str = join(folder_output, "exp3_" + datetime.now().strftime("time=%m-%d-%Y_%H-%M-%S") + ".csv")
 
     # the list of KCFs to consider in the experiment
-    kcfs: List[ScoringScheme] = []
+    kcfs: List[crc.ScoringScheme] = []
     # vector of different values to test in the experiment for t1, t2, t4, t5
     penalties_t: List[float] = [0.0, 0.25, 0.5, 0.75, 1.]
 
     for penalty in penalties_t:
         # vector b is constant, t varies
-        scoringscheme: ScoringScheme = ScoringScheme(
+        scoringscheme: crc.ScoringScheme = crc.ScoringScheme(
             [[0., 1., 1., 0., 1., 0], [penalty, penalty, 0., penalty, penalty, penalty]])
         kcfs.append(scoringscheme)
+
     bench: BenchPartitioningScoringScheme = BenchPartitioningScoringScheme(
         dataset_folder=path_dataset,
         # the kcfs to consider
         scoring_schemes_exp=kcfs,
         # all the files (tuples of rankings) are considered
-        dataset_selector_exp=DatasetSelector(),
+        dataset_selector_exp=crc.DatasetSelector(),
         # = T[1], for printing changing value of T
         # (num of row, num of col) of the penalty to be changed in the experiment
         # for instance, if b3 is changed, then num = 0 and col = 2 as scoringscheme[0][2] = b3
@@ -142,19 +131,19 @@ def run_count_subproblems_b6_ijar(path_dataset: str, raw_data=False):
     print("Estimated time: ~ 90 min on Intel Core i7-7820HQ CPU 2.9 GHz * 8")
     # file_output: str = join(folder_output, "exp4_" + datetime.now().strftime("time=%m-%d-%Y_%H-%M-%S") + ".csv")
 
-    kcfs: List[ScoringScheme] = []
+    kcfs: List[crc.ScoringScheme] = []
     # sets the values of b6 to consider (note that b4 is set to 0)
     penalties_6: List[float] = [0.0, 0.25, 0.5, 0.75, 1.]
     # creation of scoring schemes ( KCFs )
     for penalty_6 in penalties_6:
-        kcfs.append(ScoringScheme([[0., 1., 1., 0., 1., penalty_6], [1., 1., 0., 1., 1., 0.]]))
+        kcfs.append(crc.ScoringScheme([[0., 1., 1., 0., 1., penalty_6], [1., 1., 0., 1., 1., 0.]]))
 
     bench: BenchPartitioningScoringScheme = BenchPartitioningScoringScheme(
         dataset_folder=path_dataset,
         # the kcfs to consider
         scoring_schemes_exp=kcfs,
         # all the files (tuples of rankings) are considered
-        dataset_selector_exp=DatasetSelector(),
+        dataset_selector_exp=crc.DatasetSelector(),
         # = B[6], for printing changing value of B
         changing_coeff=(0, 5),
         # range of number of elements to consider for the output
@@ -173,10 +162,10 @@ def run_experiment_bio_orphanet(dataset_path: str, raw_data=False, figures=False
 
     # sets the values of b5-b4 to consider (note that b4 is set to 0)
     values_b5: List[float] = [0.0, 0.25, 0.5, 0.75, 1, 2]
-    kcfs: List[ScoringScheme] = []
+    kcfs: List[crc.ScoringScheme] = []
     # creation of the scoring schemes (the KCFs)
     for value_b5 in values_b5:
-        kcfs.append(ScoringScheme([[0., 1., 1., 0., value_b5, 0.], [1., 1., 0., value_b5, value_b5, 0]]))
+        kcfs.append(crc.ScoringScheme([[0., 1., 1., 0., value_b5, 0.], [1., 1., 0., value_b5, value_b5, 0]]))
 
     exp1: ExperimentOrphanet = ExperimentOrphanet(
         dataset_folder=dataset_path,
@@ -185,10 +174,10 @@ def run_experiment_bio_orphanet(dataset_path: str, raw_data=False, figures=False
         # the top-k to consider
         top_k_to_test=[10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110],
         # algorithm to compute the consensus
-        algo=ParCons(bound_for_exact=150, auxiliary_algorithm=BioConsert()),
+        algo=crc.ParCons(bound_for_exact=150, auxiliary_algorithm=crc.BioConsert()),
         # selects all the tuples of rankings with at least 100 elements and 3 rankings
         # dataset_selector=DatasetSelector(nb_elem_min=100, nb_rankings_min=3)
-        dataset_selector=DatasetSelector(nb_elem_min=100, nb_rankings_min=3),
+        dataset_selector=crc.DatasetSelector(nb_elem_min=100, nb_rankings_min=3),
 
     )
 
@@ -207,10 +196,10 @@ def run_experiment_students_ijar(raw_data=False, figures=False):
     np.random.seed(1)
     # sets the values of b5-b4 to consider (note that b4 is set to 0)
     values_b5: List[float] = [0., 0.25, 0.5, 0.75, 1., 2]
-    kcfs: List[ScoringScheme] = []
+    kcfs: List[crc.ScoringScheme] = []
     # creation of the scoring schemes (the KCFs)
     for value_b5 in values_b5:
-        kcfs.append(ScoringScheme([[0., 1., 1., 0., value_b5, 0.], [1., 1., 0., value_b5, value_b5, 0]]))
+        kcfs.append(crc.ScoringScheme([[0., 1., 1., 0., value_b5, 0.], [1., 1., 0., value_b5, value_b5, 0]]))
     """"
     the parameters are all the ones detailled in the research paper. 100 student classes, each student class
     has 280 students from track 1 and 20 from track 2. In tract 1: choose uniformly 14 classes over 17 and in track
@@ -243,7 +232,7 @@ def run_experiment_students_ijar(raw_data=False, figures=False):
         # kcfs to consider
         scoring_schemes=kcfs,
         # algorithm to compute consensus
-        algo=CopelandMethod())
+        algo=crc.CopelandMethod())
 
     # run experiment and print results. If raw_data is true: also print all parameters of experiment (readme)
     # and the raw data that was used to compute the final data. If parameter is false, only final data is displayed
